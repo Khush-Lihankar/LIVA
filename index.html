@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- OneSignal SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
     <style>
         :root {
             --bg: #0a0a0f;
@@ -345,9 +347,26 @@
         <div class="cell-tooltip" id="cell-tooltip"></div>
     </div>
 
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <!-- OneSignal Initialization -->
+    <script>
+        window.OneSignalDeferred = window.OneSignalDeferred || [];
+        OneSignalDeferred.push(async function(OneSignal) {
+            await OneSignal.init({
+                appId: "a967870d-57cd-4285-ac21-00f3267b31e4",
+            });
+            console.log('🔔 OneSignal initialized');
+            // Update notification permission status
+            if (OneSignal.Notifications) {
+                const perm = await OneSignal.Notifications.permission;
+                APP.notificationPermission = perm ? 'granted' : 'denied';
+            }
+        });
+    </script>
 
     <script>
         (function() {
@@ -616,7 +635,6 @@
                     } html+='</div></div>';
                 } container.innerHTML=html;
                 document.getElementById('zoom-label').textContent=Math.round(APP.calendarZoom*100)+'%';
-                // Auto scroll to current year block
                 setTimeout(()=>{
                     const yearBlock = document.getElementById('year-'+currentYear);
                     if(yearBlock) yearBlock.scrollIntoView({behavior:'smooth', block:'center'});
@@ -707,12 +725,10 @@
                 let allUsers = [];
                 if(firebaseReady) {
                     const publicProfiles = await dbGet('publicProfiles') || {};
-                    // exclude self from public profiles to avoid duplication
                     allUsers = Object.entries(publicProfiles)
                         .filter(([uid]) => uid !== APP.uid)
                         .map(([uid,profile])=>({uid,...profile}));
                 }
-                // add self
                 allUsers.push({ uid:APP.uid, name:APP.user.name, country:APP.user.country, age:APP.user.age, satisfaction:stats.satisfaction, greenDays:stats.greenDays, redDays:stats.redDays, isMe:true });
                 const sorted = [...allUsers].sort((a,b)=>b.satisfaction-a.satisfaction);
                 const myRank = sorted.findIndex(u=>u.isMe)+1;
@@ -761,7 +777,9 @@
             }
             function triggerReminder() {
                 showToast('🎨 Your day is still blank. Paint it!');
-                if(APP.notificationPermission==='granted') try{new Notification('Life Canvas',{body:'Your day is still blank.',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%235b8def"/></svg>',tag:'lc'});}catch(e){}
+                if(APP.notificationPermission==='granted') {
+                    try{new Notification('Life Canvas',{body:'Your day is still blank.',icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="%235b8def"/></svg>',tag:'lc'});}catch(e){}
+                }
                 APP.notifications.push({message:'Day still blank',time:Date.now(),read:false}); saveAllLocal();
             }
             function setupNotifications() {
@@ -793,7 +811,7 @@
             window.openReflectionModal=openReflectionModal; window.closeReflectionModal=closeReflectionModal; window.reflectDay=reflectDay;
             window.filterFriends=filterFriends; window.toggleFriendFollow=toggleFriendFollow; window.setPrivacy=setPrivacy;
             window.toggleSetting=toggleSetting; window.showNotifications=showNotifications;
-            console.log('🎨 Life Canvas – Real users only. Calendar auto-scrolls to current year. No duplicate entries.');
+            console.log('🎨 Life Canvas – Real users only. OneSignal push notifications integrated.');
         })();
     </script>
 </body>
